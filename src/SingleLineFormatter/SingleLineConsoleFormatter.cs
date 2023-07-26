@@ -20,6 +20,7 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
     private const string LogLevelPadding = ": ";
     private static readonly string MessagePadding = new(' ', GetMaximumLogLevelLength() + LogLevelPadding.Length);
     private static readonly string NewLineWithMessagePadding = Environment.NewLine + MessagePadding;
+    private static readonly string ResetColor = "\u001b[39m\u001b[22m\u001b[49m";
     private readonly IDisposable? optionsReloadToken;
 
     /// <summary>
@@ -57,41 +58,26 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
             return;
         }
 
+        if (FormatterOptions.ColorWholeLine)
+        {
+            var logLevelColors = GetLogLevelConsoleColors(logEntry.LogLevel);
+            textWriter.Write(logLevelColors);
+        }
+
         WriteTime(textWriter);
-        WriteLogLevel(logEntry, textWriter);
+        WriteLogLevel(logEntry.LogLevel, textWriter);
         textWriter.Write(logEntry.Category);
-        WriteEventId(logEntry, textWriter);
+        WriteEventId(logEntry.EventId, textWriter);
         WriteScopeInformation(textWriter, scopeProvider);
         textWriter.Write("- ");
         WriteMessage(textWriter, message);
         WriteException(textWriter, logEntry.Exception);
-        textWriter.WriteLine();
-    }
-
-    private static string GetLogLevelConsoleColors(LogLevel logLevel)
-    {
-        // We shouldn't be outputting color codes for Android/Apple mobile platforms, they have no
-        // shell (adb shell is not meant for running apps) and all the output gets redirected to
-        // some log file.
-        var disableColors = IsAndroidOrAppleMobile;
-        if (disableColors)
+        if (FormatterOptions.ColorWholeLine)
         {
-            return string.Empty;
+            textWriter.Write(ResetColor);
         }
 
-        // We must explicitly set the background color if we are setting the foreground color, since
-        // just setting one can look bad on the users console.
-        return logLevel switch
-        {
-            LogLevel.Trace => "\u001b[37m\u001b[40m",
-            LogLevel.Debug => "\u001b[37m\u001b[40m",
-            LogLevel.Information => "\u001b[32m\u001b[40m",
-            LogLevel.Warning => "\u001b[1m\u001b[33m\u001b[40m",
-            LogLevel.Error => "\u001b[30m\u001b[41m",
-            LogLevel.Critical => "\u001b[1m\u001b[37m\u001b[41m",
-            LogLevel.None => string.Empty,
-            _ => string.Empty,
-        };
+        textWriter.WriteLine();
     }
 
     private static string GetLogLevelString(LogLevel logLevel)
@@ -128,18 +114,17 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
         return length;
     }
 
-    private static void WriteEventId<TState>(LogEntry<TState> logEntry, TextWriter textWriter)
+    private static void WriteEventId(EventId eventId, TextWriter textWriter)
     {
         textWriter.Write('[');
-        var eventId = logEntry.EventId.Id;
         Span<char> span = stackalloc char[10];
-        if (eventId.TryFormat(span, out var charsWritten, default, CultureInfo.CurrentCulture))
+        if (eventId.Id.TryFormat(span, out var charsWritten, default, CultureInfo.CurrentCulture))
         {
             textWriter.Write(span[..charsWritten]);
         }
         else
         {
-            textWriter.Write(eventId.ToString(CultureInfo.CurrentCulture));
+            textWriter.Write(eventId.Id.ToString(CultureInfo.CurrentCulture));
         }
 
         textWriter.Write(']');
@@ -160,20 +145,6 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
         WriteMessage(textWriter, exception.ToString());
     }
 
-    private static void WriteLogLevel<TState>(LogEntry<TState> logEntry, TextWriter textWriter)
-    {
-        var logLevel = logEntry.LogLevel;
-        var logLevelColors = GetLogLevelConsoleColors(logLevel);
-        var logLevelString = GetLogLevelString(logLevel);
-        if (logLevelString != null)
-        {
-            textWriter.Write(logLevelColors);
-            textWriter.Write(logLevelString);
-            textWriter.Write("\u001b[39m\u001b[22m\u001b[49m");
-            textWriter.Write(LogLevelPadding);
-        }
-    }
-
     private static void WriteMessage(TextWriter textWriter, string message)
     {
         if (string.IsNullOrEmpty(message))
@@ -188,9 +159,78 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
     private DateTimeOffset GetCurrentDateTime()
         => FormatterOptions.UseUtcTimestamp ? DateTimeOffset.UtcNow : DateTimeOffset.Now;
 
+    private string GetLogLevelConsoleColors(LogLevel logLevel)
+    {
+        // We shouldn't be outputting color codes for Android/Apple mobile platforms, they have no
+        // shell (adb shell is not meant for running apps) and all the output gets redirected to
+        // some log file.
+        var disableColors = IsAndroidOrAppleMobile;
+        if (disableColors)
+        {
+            return string.Empty;
+        }
+
+        // We must explicitly set the background color if we are setting the foreground color, since
+        // just setting one can look bad on the users console.
+        return FormatterOptions.ColorMode switch
+        {
+            ColorMode.NLog => logLevel switch
+            {
+                LogLevel.Trace => "\u001b[90m\u001b[40m",
+                LogLevel.Debug => "\u001b[37m\u001b[40m",
+                LogLevel.Information => "\u001b[97m\u001b[40m",
+                LogLevel.Warning => "\u001b[95m\u001b[40m",
+                LogLevel.Error => "\u001b[93m\u001b[40m",
+                LogLevel.Critical => "\u001b[91m\u001b[40m",
+                LogLevel.None => string.Empty,
+                _ => string.Empty,
+            },
+            ColorMode.Serilog => logLevel switch
+            {
+                LogLevel.Trace => "\u001b[38;5;0007m\u001b[40m",
+                LogLevel.Debug => "\u001b[38;5;0007m\u001b[40m",
+                LogLevel.Information => "\u001b[38;5;0015m\u001b[40m",
+                LogLevel.Warning => "\u001b[38;5;0011m\u001b[40m",
+                LogLevel.Error => "\u001b[38;5;0015m\u001b[48;5;0196m",
+                LogLevel.Critical => "\u001b[38;5;0015m\u001b[48;5;0196m",
+                LogLevel.None => string.Empty,
+                _ => string.Empty,
+            },
+            ColorMode.MEL => logLevel switch
+            {
+                LogLevel.Trace => "\u001b[37m\u001b[40m",
+                LogLevel.Debug => "\u001b[37m\u001b[40m",
+                LogLevel.Information => "\u001b[32m\u001b[40m",
+                LogLevel.Warning => "\u001b[1m\u001b[33m\u001b[40m",
+                LogLevel.Error => "\u001b[30m\u001b[41m",
+                LogLevel.Critical => "\u001b[1m\u001b[37m\u001b[41m",
+                LogLevel.None => string.Empty,
+                _ => string.Empty,
+            },
+            _ => throw new InvalidOperationException("Unknown color mode."),
+        };
+    }
+
     [MemberNotNull(nameof(FormatterOptions))]
     private void ReloadLoggerOptions(SingleLineConsoleFormatterOptions options)
         => FormatterOptions = options;
+
+    private void WriteLogLevel(LogLevel logLevel, TextWriter textWriter)
+    {
+        var logLevelColors = FormatterOptions.ColorWholeLine ? string.Empty : GetLogLevelConsoleColors(logLevel);
+        var logLevelString = GetLogLevelString(logLevel);
+        if (logLevelString != null)
+        {
+            textWriter.Write(logLevelColors);
+            textWriter.Write(logLevelString);
+            if (!FormatterOptions.ColorWholeLine)
+            {
+                textWriter.Write(ResetColor);
+            }
+
+            textWriter.Write(LogLevelPadding);
+        }
+    }
 
     private void WriteScopeInformation(TextWriter textWriter, IExternalScopeProvider? scopeProvider)
     {
