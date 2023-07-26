@@ -1,25 +1,35 @@
 # Vectron.Extensions.Logging.Console.Formatter
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Vectron/Vectron.Extensions.Logging.Console.Formatter/blob/main/LICENSE.txt)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.txt)
 [![Build status](https://github.com/Vectron/Vectron.Extensions.Logging.Console.Formatter/actions/workflows/BuildTestDeploy.yml/badge.svg)](https://github.com/Vectron/Vectron.Extensions.Logging.Console.Formatter/actions)
 [![NuGet](https://img.shields.io/nuget/v/Vectron.Extensions.Logging.Console.Formatter.svg)](https://www.nuget.org/packages/Vectron.Extensions.Logging.Console.Formatter)
 
 Vectron.Extensions.Logging.Console.Formatter provides a custom formatter for [Microsoft.Extensions.Logging.Console](https://github.com/dotnet/runtime/tree/main/src/libraries/Microsoft.Extensions.Logging.Console/src)
 it is based on the SimpleConsoleFormatter.
 
-differences are:
+## Changes with default simple formatter
 1. The message will be single line, but preserves new lines in the message.
-2. The Level text is changed to captials and full word  
+2. The Level text is changed to capitals and full word  
     trce -> TRACE  
     dbug -> DEBUG  
     info -> INFO  
     warn -> WARN  
     fail -> FAIL  
     crit -> CRIT  
+3. Added a '-' between scope and message
 
-example output:  
-08:30:13 INFO Microsoft.Hosting.Lifetime[0] Hosting environment: Production
+output examples:  
+[Microsoft.Extensions.Logging level only](assets/MelLevelOnly.png)  
+[Microsoft.Extensions.Logging Full line](assets/MelFullLine.png)  
 
-To use the SingleLine formatter register it with the ILoggingBuilder:
+[NLog level only](assets/NLogLevelOnly.png)  
+[NLog Full line](assets/NLogFullLine.png)  
+
+[Serilog level only](assets/SerilogLevelOnly.png)  
+[Serilog Full line](assets/SerilogFullLine.png)  
+
+## Setup
+### From code
+
 ```C#
 using ILoggerFactory loggerFactory =
     LoggerFactory.Create(builder =>
@@ -31,7 +41,7 @@ using ILoggerFactory loggerFactory =
         }));
 ```
 
-or when using configuration files:
+### With settings file
 ```C#
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Logging
