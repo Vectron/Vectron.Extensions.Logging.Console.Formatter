@@ -17,7 +17,7 @@ builder.Services
         options.IncludeScopes = true;
         options.TimestampFormat = "HH:mm:ss";
         options.ColorWholeLine = false;
-        options.ColorMode = ColorMode.MEL;
+        options.Theme = "MEL";
     });
 
 builder.Logging
@@ -28,53 +28,41 @@ using var host = builder.Build();
 loggingConfig.SetLogLevel(LogLevel.Trace, "Console", "Default");
 var logger = host.Services.GetRequiredService<ILogger<Program>>();
 
-loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.ColorMode), ColorMode.MEL);
+loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.Theme), "MEL");
 Console.WriteLine("Microsoft.Extensions.Logging.Console Colors:");
 LogTest.WriteLogs(logger);
-Console.WriteLine();
 Console.ReadLine();
 Console.Clear();
-Console.Clear();
 
-loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.ColorMode), ColorMode.NLog);
+loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.Theme), "NLog");
 Console.WriteLine("NLog Colors:");
 LogTest.WriteLogs(logger);
-Console.WriteLine();
 Console.ReadLine();
-Console.Clear();
 Console.Clear();
 
-loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.ColorMode), ColorMode.Serilog);
+loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.Theme), "Serilog");
 Console.WriteLine("Serilog Colors:");
 LogTest.WriteLogs(logger);
-Console.WriteLine();
 Console.ReadLine();
-Console.Clear();
 Console.Clear();
 
 loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.ColorWholeLine), value: true);
-loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.ColorMode), ColorMode.MEL);
+loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.Theme), "MEL");
 Console.WriteLine("Microsoft.Extensions.Logging.Console Colors (whole line):");
 LogTest.WriteLogs(logger);
-Console.WriteLine();
 Console.ReadLine();
 Console.Clear();
-Console.Clear();
 
-loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.ColorMode), ColorMode.NLog);
+loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.Theme), "NLog");
 Console.WriteLine("NLog Colors (whole line):");
 LogTest.WriteLogs(logger);
-Console.WriteLine();
 Console.ReadLine();
-Console.Clear();
 Console.Clear();
 
-loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.ColorMode), ColorMode.Serilog);
+loggingConfig.SetConsoleFormatterOption(nameof(SingleLineConsoleFormatterOptions.Theme), "Serilog");
 Console.WriteLine("Serilog Colors (whole line):");
 LogTest.WriteLogs(logger);
-Console.WriteLine();
 Console.ReadLine();
-Console.Clear();
 Console.Clear();
 
 Console.ReadLine();

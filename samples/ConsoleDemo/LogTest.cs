@@ -34,7 +34,23 @@ internal static class LogTest
         logger.LogWarning("This is a warning Message");
         logger.LogError("This is a error Message");
         logger.LogCritical("This is a critical Message");
-        logger.LogError(new InvalidOperationException("Something went wrong."), "Error with exception");
+
+        try
+        {
+            try
+            {
+                throw new NotSupportedException("The inner exception");
+            }
+            catch (NotSupportedException inner)
+            {
+                throw new InvalidOperationException("Something went wrong", inner);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogError(ex, "Error with exception");
+        }
+
         Console.WriteLine();
     }
 }

@@ -17,19 +17,22 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
     /// </summary>
     internal const string FormatterName = "SingleLineFormatter";
 
+    private const string InnerExceptionPrefix = " ---> ";
     private const string LogLevelPadding = ": ";
     private static readonly string MessagePadding = new(' ', GetMaximumLogLevelLength() + LogLevelPadding.Length);
     private static readonly string NewLineWithMessagePadding = Environment.NewLine + MessagePadding;
-    private static readonly string ResetColor = "\u001b[39m\u001b[22m\u001b[49m";
     private readonly IDisposable? optionsReloadToken;
+    private readonly IThemeProvider themeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SingleLineConsoleFormatter"/> class.
     /// </summary>
     /// <param name="options">Options for setting up this formatter.</param>
-    public SingleLineConsoleFormatter(IOptionsMonitor<SingleLineConsoleFormatterOptions> options)
+    /// <param name="themeProvider">The registered themes.</param>
+    public SingleLineConsoleFormatter(IOptionsMonitor<SingleLineConsoleFormatterOptions> options, IThemeProvider themeProvider)
         : base(FormatterName)
     {
+        this.themeProvider = themeProvider;
         ReloadLoggerOptions(options.CurrentValue);
         optionsReloadToken = options.OnChange(ReloadLoggerOptions);
     }
@@ -42,8 +45,6 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
         get;
         set;
     }
-
-    private static bool IsAndroidOrAppleMobile => OperatingSystem.IsAndroid() || OperatingSystem.IsTvOS() || OperatingSystem.IsIOS(); // returns true on MacCatalyst
 
     /// <inheritdoc/>
     public void Dispose()
@@ -60,21 +61,20 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
 
         if (FormatterOptions.ColorWholeLine)
         {
-            var logLevelColors = GetLogLevelConsoleColors(logEntry.LogLevel);
-            textWriter.Write(logLevelColors);
+            var lineColor = themeProvider.GetLineColor(logEntry.LogLevel);
+            textWriter.Write(lineColor);
         }
 
         WriteTime(textWriter);
         WriteLogLevel(logEntry.LogLevel, textWriter);
-        textWriter.Write(logEntry.Category);
+        WriteCategory(logEntry.Category, textWriter);
         WriteEventId(logEntry.EventId, textWriter);
         WriteScopeInformation(textWriter, scopeProvider);
-        textWriter.Write("- ");
-        WriteMessage(textWriter, message);
+        WriteLogMessage(textWriter, message);
         WriteException(textWriter, logEntry.Exception);
         if (FormatterOptions.ColorWholeLine)
         {
-            textWriter.Write(ResetColor);
+            textWriter.WriteResetColor();
         }
 
         textWriter.WriteLine();
@@ -114,38 +114,81 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
         return length;
     }
 
-    private static void WriteEventId(EventId eventId, TextWriter textWriter)
+    private DateTimeOffset GetCurrentDateTime()
+        => FormatterOptions.UseUtcTimestamp ? DateTimeOffset.UtcNow : DateTimeOffset.Now;
+
+    [MemberNotNull(nameof(FormatterOptions))]
+    private void ReloadLoggerOptions(SingleLineConsoleFormatterOptions options) => FormatterOptions = options;
+
+    private void WriteCategory(string category, TextWriter textWriter)
     {
+        if (string.IsNullOrEmpty(category))
+        {
+            return;
+        }
+
+        var color = themeProvider.GetCategoryColor(category);
+        textWriter.WriteColored(color, category, FormatterOptions.ColorWholeLine);
+    }
+
+    private void WriteEventId(EventId eventId, TextWriter textWriter)
+    {
+        var color = themeProvider.GetEventIdColor(eventId);
+        if (!FormatterOptions.ColorWholeLine && !string.IsNullOrEmpty(color))
+        {
+            textWriter.Write(color);
+        }
+
         textWriter.Write('[');
         Span<char> span = stackalloc char[10];
+
         if (eventId.Id.TryFormat(span, out var charsWritten, default, CultureInfo.CurrentCulture))
         {
             textWriter.Write(span[..charsWritten]);
         }
         else
         {
-            textWriter.Write(eventId.Id.ToString(CultureInfo.CurrentCulture));
+            var id = eventId.Id.ToString(CultureInfo.CurrentCulture);
+            textWriter.Write(id);
         }
 
         textWriter.Write(']');
+
+        if (!FormatterOptions.ColorWholeLine && !string.IsNullOrEmpty(color))
+        {
+            textWriter.WriteResetColor();
+        }
+
         textWriter.Write(' ');
     }
 
-    private static void WriteException(TextWriter textWriter, Exception? exception)
+    private void WriteException(TextWriter textWriter, Exception? exception)
     {
-        // Example: System.InvalidOperationException at Namespace.Class.Function() in File:line X
         if (exception == null)
         {
             return;
         }
 
-        // exception message
-        textWriter.WriteLine();
-        textWriter.Write(MessagePadding);
-        WriteMessage(textWriter, exception.ToString());
+        textWriter.Write(NewLineWithMessagePadding);
+        var message = exception.ToString().Replace(Environment.NewLine, NewLineWithMessagePadding, StringComparison.Ordinal);
+        var color = themeProvider.GetExceptionColor(exception);
+        textWriter.WriteColored(color, message, FormatterOptions.ColorWholeLine);
     }
 
-    private static void WriteMessage(TextWriter textWriter, string message)
+    private void WriteLogLevel(LogLevel logLevel, TextWriter textWriter)
+    {
+        var logLevelString = GetLogLevelString(logLevel);
+        if (logLevelString == null)
+        {
+            return;
+        }
+
+        var color = themeProvider.GetLogLevelColor(logLevel);
+        textWriter.WriteColored(color, logLevelString, FormatterOptions.ColorWholeLine);
+        textWriter.Write(LogLevelPadding);
+    }
+
+    private void WriteLogMessage(TextWriter textWriter, string message)
     {
         if (string.IsNullOrEmpty(message))
         {
@@ -153,83 +196,8 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
         }
 
         var newMessage = message.Replace(Environment.NewLine, NewLineWithMessagePadding, StringComparison.Ordinal);
-        textWriter.Write(newMessage);
-    }
-
-    private DateTimeOffset GetCurrentDateTime()
-        => FormatterOptions.UseUtcTimestamp ? DateTimeOffset.UtcNow : DateTimeOffset.Now;
-
-    private string GetLogLevelConsoleColors(LogLevel logLevel)
-    {
-        // We shouldn't be outputting color codes for Android/Apple mobile platforms, they have no
-        // shell (adb shell is not meant for running apps) and all the output gets redirected to
-        // some log file.
-        var disableColors = IsAndroidOrAppleMobile;
-        if (disableColors)
-        {
-            return string.Empty;
-        }
-
-        // We must explicitly set the background color if we are setting the foreground color, since
-        // just setting one can look bad on the users console.
-        return FormatterOptions.ColorMode switch
-        {
-            ColorMode.NLog => logLevel switch
-            {
-                LogLevel.Trace => "\u001b[90m\u001b[40m",
-                LogLevel.Debug => "\u001b[37m\u001b[40m",
-                LogLevel.Information => "\u001b[97m\u001b[40m",
-                LogLevel.Warning => "\u001b[95m\u001b[40m",
-                LogLevel.Error => "\u001b[93m\u001b[40m",
-                LogLevel.Critical => "\u001b[91m\u001b[40m",
-                LogLevel.None => string.Empty,
-                _ => string.Empty,
-            },
-            ColorMode.Serilog => logLevel switch
-            {
-                LogLevel.Trace => "\u001b[38;5;0007m\u001b[40m",
-                LogLevel.Debug => "\u001b[38;5;0007m\u001b[40m",
-                LogLevel.Information => "\u001b[38;5;0015m\u001b[40m",
-                LogLevel.Warning => "\u001b[38;5;0011m\u001b[40m",
-                LogLevel.Error => "\u001b[38;5;0015m\u001b[48;5;0196m",
-                LogLevel.Critical => "\u001b[38;5;0015m\u001b[48;5;0196m",
-                LogLevel.None => string.Empty,
-                _ => string.Empty,
-            },
-            ColorMode.MEL => logLevel switch
-            {
-                LogLevel.Trace => "\u001b[37m\u001b[40m",
-                LogLevel.Debug => "\u001b[37m\u001b[40m",
-                LogLevel.Information => "\u001b[32m\u001b[40m",
-                LogLevel.Warning => "\u001b[1m\u001b[33m\u001b[40m",
-                LogLevel.Error => "\u001b[30m\u001b[41m",
-                LogLevel.Critical => "\u001b[1m\u001b[37m\u001b[41m",
-                LogLevel.None => string.Empty,
-                _ => string.Empty,
-            },
-            _ => throw new InvalidOperationException("Unknown color mode."),
-        };
-    }
-
-    [MemberNotNull(nameof(FormatterOptions))]
-    private void ReloadLoggerOptions(SingleLineConsoleFormatterOptions options)
-        => FormatterOptions = options;
-
-    private void WriteLogLevel(LogLevel logLevel, TextWriter textWriter)
-    {
-        var logLevelColors = FormatterOptions.ColorWholeLine ? string.Empty : GetLogLevelConsoleColors(logLevel);
-        var logLevelString = GetLogLevelString(logLevel);
-        if (logLevelString != null)
-        {
-            textWriter.Write(logLevelColors);
-            textWriter.Write(logLevelString);
-            if (!FormatterOptions.ColorWholeLine)
-            {
-                textWriter.Write(ResetColor);
-            }
-
-            textWriter.Write(LogLevelPadding);
-        }
+        var color = themeProvider.GetMessageColor(newMessage);
+        textWriter.WriteColored(color, newMessage, FormatterOptions.ColorWholeLine);
     }
 
     private void WriteScopeInformation(TextWriter textWriter, IExternalScopeProvider? scopeProvider)
@@ -242,8 +210,9 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
         scopeProvider.ForEachScope(
             (scope, state) =>
             {
+                var color = themeProvider.GetScopeColor(scope);
                 state.Write("=> ");
-                state.Write(scope);
+                state.WriteColored(color, scope, FormatterOptions.ColorWholeLine);
                 textWriter.Write(' ');
             },
             textWriter);
@@ -251,18 +220,17 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
 
     private void WriteTime(TextWriter textWriter)
     {
-        string? timestamp = null;
         var timestampFormat = FormatterOptions.TimestampFormat;
-        if (timestampFormat != null)
+        if (string.IsNullOrEmpty(timestampFormat))
         {
-            var dateTimeOffset = GetCurrentDateTime();
-            timestamp = dateTimeOffset.ToString(timestampFormat, CultureInfo.CurrentCulture);
+            return;
         }
 
-        if (timestamp != null)
-        {
-            textWriter.Write(timestamp);
-            textWriter.Write(' ');
-        }
+        var dateTimeOffset = GetCurrentDateTime();
+        var timestamp = dateTimeOffset.ToString(timestampFormat, CultureInfo.CurrentCulture);
+
+        var color = themeProvider.GetTimeColor(dateTimeOffset);
+        textWriter.WriteColored(color, timestamp, FormatterOptions.ColorWholeLine);
+        textWriter.Write(' ');
     }
 }

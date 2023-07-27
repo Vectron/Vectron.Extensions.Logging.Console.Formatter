@@ -1,6 +1,9 @@
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Vectron.Extensions.Logging.Console.Formatter.Themes;
 
 namespace Vectron.Extensions.Logging.Console.Formatter;
 
@@ -28,8 +31,11 @@ public static class ConsoleLoggerExtensions
     /// </param>
     /// <returns>The <see cref="ILoggingBuilder"/> for chaining.</returns>
     public static ILoggingBuilder AddSingleLineConsole(this ILoggingBuilder builder, Action<SingleLineConsoleFormatterOptions> configure)
-        => builder.AddConsole(options => options.FormatterName = SingleLineConsoleFormatter.FormatterName)
-            .AddConsoleFormatter<SingleLineConsoleFormatter, SingleLineConsoleFormatterOptions>(configure);
+    {
+        builder.Services.AddSingleLineConsole();
+        return builder.AddConsole(options => options.FormatterName = SingleLineConsoleFormatter.FormatterName)
+                .AddConsoleFormatter<SingleLineConsoleFormatter, SingleLineConsoleFormatterOptions>(configure);
+    }
 
     /// <summary>
     /// Add a console log formatter named 'SingleLineFormatter' to the factory with default properties.
@@ -37,5 +43,18 @@ public static class ConsoleLoggerExtensions
     /// <param name="builder">The <see cref="ILoggingBuilder"/> to use.</param>
     /// <returns>The <see cref="ILoggingBuilder"/> for chaining.</returns>
     public static ILoggingBuilder AddSingleLineConsoleFormatter(this ILoggingBuilder builder)
-        => builder.AddConsoleFormatter<SingleLineConsoleFormatter, SingleLineConsoleFormatterOptions>();
+    {
+        builder.Services.AddSingleLineConsole();
+        return builder.AddConsoleFormatter<SingleLineConsoleFormatter, SingleLineConsoleFormatterOptions>();
+    }
+
+    private static void AddSingleLineConsole(this IServiceCollection services)
+    {
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITheme, NoColorTheme>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITheme, MELTheme>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITheme, NLogTheme>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITheme, SerilogTheme>());
+
+        services.TryAddSingleton<IThemeProvider, ThemeProvider>();
+    }
 }

@@ -8,18 +8,18 @@ namespace Vectron.Extensions.Logging.Console.Formatter;
 public class SingleLineConsoleFormatterOptions : ConsoleFormatterOptions
 {
     /// <summary>
-    /// Gets or sets the colors to use.
+    /// Gets or sets a value indicating whether the whole line should be colored.
     /// </summary>
-    public ColorMode ColorMode
+    public bool ColorWholeLine
     {
         get;
         set;
     }
 
     /// <summary>
-    /// Gets or sets a value indicating whether indicates if the whole line should be colored.
+    /// Gets or sets the colors theme to use.
     /// </summary>
-    public bool ColorWholeLine
+    public string? Theme
     {
         get;
         set;

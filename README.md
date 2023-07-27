@@ -15,9 +15,18 @@ it is based on the SimpleConsoleFormatter.
     warn -> WARN  
     fail -> FAIL  
     crit -> CRIT  
-3. Added a '-' between scope and message
+3. implemented themes for coloring.  
+    Change theme by changing the FormatterOptions.Theme options.  
+    Buildin themes:
 
-output examples:  
+| Option | Description |
+| --- | --- |
+| MEL | Use the colors like 'Microsoft.Extensions.Logging.Console' |
+| NLog | Use the colors like 'NLog' |
+| Serilog | Use the colors like 'Serilog' |
+| None | Don't colorize the output |
+
+## Output examples:  
 [Microsoft.Extensions.Logging level only](assets/MelLevelOnly.png)  
 [Microsoft.Extensions.Logging Full line](assets/MelFullLine.png)  
 
@@ -26,6 +35,7 @@ output examples:
 
 [Serilog level only](assets/SerilogLevelOnly.png)  
 [Serilog Full line](assets/SerilogFullLine.png)  
+
 
 ## Setup
 ### From code
