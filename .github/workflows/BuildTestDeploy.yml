@@ -17,9 +17,12 @@ on:
 
 jobs:
   call-build-test:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     uses: Vectron/GithubWorkflows/.github/workflows/BuildAndTest.yml@main
     with:
-      os: windows-latest
+      os: ${{ matrix.os }}
       dotnet_version: 7.0.x
       solution_file: Vectron.Extensions.Logging.Console.Formatter.sln
 
@@ -29,7 +32,7 @@ jobs:
       packages: write
     uses: Vectron/GithubWorkflows/.github/workflows/DeployNugetGithub.yml@main
     with:
-      os: windows-latest
+      os: ubuntu-latest
       dotnet_version: 7.0.x
       solution_file: Vectron.Extensions.Logging.Console.Formatter.sln
     secrets:
