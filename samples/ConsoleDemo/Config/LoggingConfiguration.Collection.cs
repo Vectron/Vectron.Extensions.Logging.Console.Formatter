@@ -9,7 +9,8 @@ namespace ConsoleDemo.Config;
 /// </summary>
 public partial class LoggingConfiguration : ILoggingConfigurationProviderCollection
 {
-    private readonly List<IConfigurationProvider> providers = new();
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.SpacingRules", "SA1010:Opening square brackets should be spaced correctly", Justification = "Style cop isn't caught up yet.")]
+    private readonly List<IConfigurationProvider> providers = [];
 
     /// <inheritdoc/>
     int ICollection<IConfigurationProvider>.Count => providers.Count;
