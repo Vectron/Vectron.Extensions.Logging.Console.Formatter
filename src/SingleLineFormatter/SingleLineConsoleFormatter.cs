@@ -106,7 +106,7 @@ public sealed class SingleLineConsoleFormatter : ConsoleFormatter, IDisposable
                     length = levelString.Length;
                 }
             }
-            catch
+            catch (ArgumentOutOfRangeException)
             {
             }
         }
