@@ -28,16 +28,20 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-  
+
 jobs:
   call-build-test:
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
+      fail-fast: true
     uses: Vectron/GithubWorkflows/.github/workflows/BuildAndTest.yml@main
     with:
       os: ${{ matrix.os }}
-      dotnet_version: 8.0.x
+      dotnet_version: |
+        6.0.x
+        7.0.x
+        8.0.x
       solution_file: Vectron.Extensions.Logging.Console.Formatter.sln
 
   call-deploy:
@@ -47,11 +51,13 @@ jobs:
     uses: Vectron/GithubWorkflows/.github/workflows/DeployNugetGithub.yml@main
     with:
       os: ubuntu-latest
-      dotnet_version: 8.0.x
+      dotnet_version: |
+        6.0.x
+        7.0.x
+        8.0.x
       solution_file: Vectron.Extensions.Logging.Console.Formatter.sln
     secrets:
       NUGET_KEY: ${{ secrets.NUGET_KEY }}
-      
 
   call-release:
     needs: call-build-test
