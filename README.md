@@ -1,3 +1,5 @@
+Superseded by <https://github.com/Vectron/Vectron.Extensions.Logging.Theming>
+
 # Vectron.Extensions.Logging.Console.Formatter
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.txt)
 [![Build status](https://github.com/Vectron/Vectron.Extensions.Logging.Console.Formatter/actions/workflows/BuildTestDeploy.yml/badge.svg)](https://github.com/Vectron/Vectron.Extensions.Logging.Console.Formatter/actions)
